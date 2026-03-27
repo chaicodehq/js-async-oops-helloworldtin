@@ -165,19 +165,31 @@ export class Startup {
   #funding;
 
   constructor(name, founder, domain) {
-    // Your code here
+    const validDomain = ["fintech", "edtech", "healthtech", "foodtech"];
+
+    if (!validDomain.includes(domain))
+      throw new Error(
+        "Invalid domain! Choose from: fintech, edtech, healthtech, foodtech",
+      );
+    this.name = name;
+    this.founder = founder;
+    this.domain = domain;
+    this.#funding = 0;
+    this.founded = new Date().toISOString();
   }
 
   get funding() {
-    // Your code here
+    return this.#funding;
   }
 
   raiseFunding(amount) {
-    // Your code here
+    if (amount < 1) return -1;
+    this.#funding += amount;
+    return this.#funding;
   }
 
   getPitch() {
-    // Your code here
+    return `${this.name} by ${this.founder} | Domain: ${this.domain} | Funding: Rs.${this.funding}`;
   }
 }
 
@@ -186,46 +198,178 @@ export class Incubator {
   #mentors;
 
   constructor(name, maxStartups) {
-    // Your code here
+    this.name = name;
+    this.maxStartups = maxStartups;
+
+    this.#startups = [];
+    this.#mentors = [];
   }
 
   async admitStartup(startup) {
-    // Your code here
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (!(startup instanceof Startup)) {
+          reject(new Error("Invalid startup!"));
+          return;
+        }
+
+        const isStartupAlreadyAdmitted = this.#startups.findIndex((s) => {
+          return s.startup.name === startup.name;
+        });
+
+        if (isStartupAlreadyAdmitted !== -1) {
+          reject(new Error("Startup already admitted!"));
+        }
+
+        if (this.#startups.length >= this.maxStartups) {
+          reject(new Error("Incubator full!"));
+        }
+
+        const newStartup = {
+          startup,
+          admittedAt: new Date().toISOString(),
+          demoCompleted: false,
+        };
+
+        this.#startups.push(newStartup);
+
+        resolve({
+          success: true,
+          message: `${startup.name} admitted to ${this.name}!`,
+        });
+      }, 10);
+    });
   }
 
   removeStartup(name) {
-    // Your code here
+    const starUpIndex = this.#startups.findIndex(
+      (startup) => startup.startup.name === name,
+    );
+
+    if (starUpIndex === -1) return false;
+    this.#startups.splice(starUpIndex, starUpIndex + 1);
+    return true;
   }
 
   async assignMentor(startupName, mentor) {
-    // Your code here
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const startUpIndex = this.#startups.findIndex(
+          (startup) => startup.startup.name === startupName,
+        );
+
+        if (startUpIndex === -1) reject(Error("Startup not found!"));
+
+        this.#mentors.push({
+          startupName,
+          mentor,
+          assignedAt: new Date().toISOString(),
+        });
+
+        resolve({
+          success: true,
+          message: `${mentor.name} assigned to ${startupName}`,
+        });
+      }, 100);
+    });
   }
 
   async conductDemo(startupName) {
-    // Your code here
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const startup = this.#startups.find(
+          (startup) => startup.startup.name === startupName,
+        );
+
+        if (!startup) {
+          reject(new Error("Startup not found!"));
+          return;
+        }
+        startup.demoCompleted = true;
+
+        const someFeedBack = [
+          "Bahut badhiya!",
+          "Accha hai, improve karo",
+          "Investors impressed!",
+        ];
+
+        const validIndex = Math.floor(someFeedBack.length * Math.random());
+        resolve({
+          startup: startupName,
+          score: Math.floor(Math.random() * 41) + 60, // 60-100
+          feedback: someFeedBack[validIndex],
+          timestamp: new Date().toISOString(),
+        });
+      }, 100);
+    });
   }
 
   async batchProcess(startups) {
-    // Your code here
+    const allStartUpPromises = startups.map((startup) =>
+      this.admitStartup(startup),
+    );
+
+    return Promise.allSettled(allStartUpPromises);
   }
 
   getStartupsByDomain(domain) {
-    // Your code here
+    let filteredStartups = this.#startups.filter((startup) => {
+      return startup.startup.domain === domain;
+    });
+
+    filteredStartups = filteredStartups.map((startup) => startup.startup);
+
+    return filteredStartups;
   }
 
   getTopFunded(n) {
-    // Your code here
+    if (n <= 0) return [];
+
+    this.#startups.sort((a, b) => b.startup.funding - a.startup.funding);
+    let res = [...this.#startups];
+
+    res = res.map((s) => s.startup);
+
+    if (n > res.length) {
+      return res;
+    }
+    return res.slice(0, n);
   }
 
   [Symbol.iterator]() {
-    // Your code here
+    const startups = this.#startups;
+    let i = 0;
+    return {
+      next() {
+        if (i < startups.length) {
+          return { done: false, value: startups[i++].startup };
+        } else {
+          return { done: true };
+        }
+      },
+    };
   }
 
   static createFromConfig(config) {
-    // Your code here
+    if (!config.name || !config.maxStartups) throw new Error("Invalid config!");
+    return new Incubator(config.name, config.maxStartups);
   }
 }
 
 export async function runDemoDay(incubator) {
-  // Your code here
+  const promises = [];
+  let count = 0;
+  for (const startup of incubator) {
+    count++;
+    promises.push(incubator.conductDemo(startup));
+  }
+
+  const results = await Promise.allSettled(promises);
+
+  return {
+    incubator: incubator.name,
+    totalStartups: count,
+    results: results,
+    timestamp: new Date().toISOString(),
+  };
 }
